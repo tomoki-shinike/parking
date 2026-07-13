@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>駐車料金計算ツール</title>
+<style>
+  :root{
+    --asphalt-900:#1C1F22;
+    --asphalt-800:#25292D;
+    --asphalt-700:#33383D;
+    --line-yellow:#F2B705;
+    --ticket-cream:#F5EFE0;
+    --barrier-red:#C1432B;
+    --ink:#23201B;
+    --mute:#8A8F94;
+    --good:#3F7A4E;
+    --mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    --sans: -apple-system, 'Hiragino Kaku Gothic ProN', 'Yu Gothic', 'Noto Sans JP', 'Segoe UI', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--asphalt-900);font-family:var(--sans);color:var(--ticket-cream);min-height:100vh;}
+  .wrap{max-width:920px;margin:0 auto;padding:24px 18px 60px;}
+
+  .panel{
+    background:repeating-linear-gradient(135deg, var(--asphalt-800) 0 18px, var(--asphalt-700) 18px 36px);
+    border-radius:10px;padding:20px 22px;border:1px solid #3d4348;position:relative;overflow:hidden;
+  }
+  .panel::before{content:"";position:absolute;left:0;top:0;bottom:0;width:10px;
+    background:repeating-linear-gradient(180deg, var(--line-yellow) 0 16px, var(--asphalt-900) 16px 32px);}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.18em;color:var(--line-yellow);padding-left:16px;text-transform:uppercase;}
+  h1{font-size:24px;margin:4px 0 2px 16px;font-weight:700;}
+  .sub{padding-left:16px;color:var(--mute);font-size:13px;}
+  .clockstrip{display:flex;gap:18px;margin-top:14px;padding-left:16px;flex-wrap:wrap;}
+  .clockitem{font-family:var(--mono);font-size:13px;color:var(--mute);}
+  .clockitem b{color:var(--ticket-cream);font-size:15px;}
+
+  .tabs{display:flex;gap:2px;margin-top:22px;border-bottom:2px solid var(--asphalt-700);}
+  .tab{font-family:var(--mono);font-size:12.5px;letter-spacing:.04em;background:none;border:none;color:var(--mute);
+    padding:10px 14px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;}
+  .tab.active{color:var(--line-yellow);border-bottom:2px solid var(--line-yellow);}
+  .tab:hover{color:var(--ticket-cream);}
+
+  .panelbody{background:var(--asphalt-800);border:1px solid #3d4348;border-top:none;border-radius:0 0 10px 10px;padding:22px;}
+
+  .section-title{font-size:13px;color:var(--line-yellow);font-family:var(--mono);letter-spacing:.06em;margin:0 0 12px;display:flex;align-items:center;gap:8px;}
+  .section-title::before{content:"■";font-size:10px;}
+  .subsection{font-size:12px;color:var(--mute);font-family:var(--mono);margin:18px 0 8px;text-transform:uppercase;letter-spacing:.05em;}
+
+  label{display:block;font-size:12px;color:var(--mute);margin-bottom:5px;}
+  input[type=text], input[type=number], input[type=datetime-local], input[type=time], input[type=date], select{
+    width:100%;background:var(--asphalt-900);border:1px solid #454b51;color:var(--ticket-cream);
+    padding:9px 10px;border-radius:6px;font-size:14px;font-family:var(--sans);
+  }
+  input:focus, select:focus{outline:2px solid var(--line-yellow);outline-offset:1px;}
+  .row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;}
+  .row > div{flex:1 1 160px;}
+  .check-row{display:flex;align-items:center;gap:8px;margin:8px 0;}
+  .check-row input{width:auto;}
+  .check-row label{margin:0;}
+  .radio-row{display:flex;gap:18px;margin:10px 0 4px;}
+  .radio-row label{display:flex;align-items:center;gap:6px;color:var(--ticket-cream);font-size:13px;margin:0;}
+  .radio-row input{width:auto;}
+
+  button.btn{font-family:var(--mono);font-size:13px;letter-spacing:.03em;background:var(--line-yellow);color:var(--asphalt-900);
+    border:none;padding:11px 18px;border-radius:6px;cursor:pointer;font-weight:700;}
+  button.btn:hover{filter:brightness(1.08);}
+  button.btn.secondary{background:none;border:1px solid #57606a;color:var(--ticket-cream);font-weight:400;}
+  button.btn.danger{background:none;border:1px solid var(--barrier-red);color:var(--barrier-red);font-weight:400;padding:6px 10px;font-size:12px;}
+  button.btn.small{padding:7px 12px;font-size:12px;}
+
+  .card-box{background:var(--asphalt-900);border:1px solid #3d4348;border-radius:8px;padding:14px 16px;margin-bottom:12px;}
+  .lotcard{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;}
+  .lotcard .name{font-weight:700;font-size:14.5px;}
+  .lotcard .meta{font-family:var(--mono);font-size:11.5px;color:var(--mute);margin-top:6px;line-height:1.7;}
+  .lotcard .btns{display:flex;gap:8px;}
+  .empty-note{color:var(--mute);font-size:13px;padding:18px;text-align:center;border:1px dashed #454b51;border-radius:8px;}
+
+  .minirow{display:flex;justify-content:space-between;align-items:center;font-family:var(--mono);font-size:12px;
+    background:var(--asphalt-800);border:1px solid #3d4348;border-radius:6px;padding:8px 10px;margin-bottom:6px;}
+  .minirow button{background:none;border:none;color:var(--barrier-red);cursor:pointer;font-size:14px;}
+
+  .stub-wrap{margin-top:22px;display:flex;justify-content:center;}
+  .stub{position:relative;background:var(--ticket-cream);color:var(--ink);width:100%;max-width:440px;border-radius:4px;
+    padding:22px 24px 26px;transform:rotate(-0.6deg);box-shadow:0 10px 26px rgba(0,0,0,.35);}
+  .stub::before, .stub::after{content:"";position:absolute;width:18px;height:18px;background:var(--asphalt-900);border-radius:50%;top:50%;transform:translateY(-50%);}
+  .stub::before{left:-9px;}
+  .stub::after{right:-9px;}
+  .stub .perf{border-top:2px dashed #b9ad8f;margin:14px 0;}
+  .stub .lotname{font-family:var(--mono);font-size:12px;letter-spacing:.08em;color:#6b6250;text-transform:uppercase;}
+  .stub .amount{font-family:var(--mono);font-size:38px;font-weight:700;line-height:1.1;margin-top:4px;}
+  .stub .amount span{font-size:16px;font-weight:400;}
+  .stub .ticketcount{font-family:var(--mono);font-size:15px;margin-top:6px;color:var(--barrier-red);font-weight:700;}
+  .stub .rows{font-size:12.5px;line-height:1.9;}
+  .stub .rows .r{display:flex;justify-content:space-between;gap:10px;}
+  .stub .rows .r .k{color:#6b6250;}
+  .stub .rows .r .v{font-family:var(--mono);text-align:right;}
+  .stub .barcode{height:26px;margin-top:12px;
+    background:repeating-linear-gradient(90deg, var(--ink) 0 2px, transparent 2px 5px, var(--ink) 5px 7px, transparent 7px 11px);opacity:.8;}
+
+  .alertbox{background:rgba(193,67,43,.15);border:1px solid var(--barrier-red);color:#f0b6a8;padding:12px 14px;border-radius:6px;font-size:13px;margin-bottom:14px;}
+  .okbox{background:rgba(63,122,78,.15);border:1px solid var(--good);color:#b6e0c1;padding:10px 14px;border-radius:6px;font-size:13px;margin-bottom:14px;}
+  .warnbox{background:rgba(242,183,5,.12);border:1px solid var(--line-yellow);color:var(--line-yellow);padding:10px 14px;border-radius:6px;font-size:12.5px;margin-top:12px;}
+
+  .histitem{font-family:var(--mono);font-size:12px;color:var(--mute);padding:8px 0;border-bottom:1px solid #333a3f;display:flex;justify-content:space-between;gap:10px;}
+  .histitem b{color:var(--ticket-cream);}
+  .helptext{font-size:12px;color:var(--mute);margin-top:2px;}
+  .tagpill{display:inline-flex;align-items:center;gap:6px;background:var(--asphalt-900);border:1px solid #454b51;border-radius:20px;padding:5px 10px 5px 12px;font-size:12px;font-family:var(--mono);margin:3px 6px 3px 0;}
+  .tagpill button{background:none;border:none;color:var(--barrier-red);cursor:pointer;font-size:13px;padding:0;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="panel">
+    <div class="eyebrow">CONTRACT PARKING / TICKET CALCULATOR</div>
+    <h1>駐車料金計算ツール</h1>
+    <div class="sub">駐車場と入庫時刻を選ぶだけで、現在時刻+20分までの料金・必要チケット枚数を自動計算します</div>
+    <div class="clockstrip">
+      <div class="clockitem">現在時刻<br><b id="clockNow">--:--:--</b></div>
+      <div class="clockitem">精算基準（現在+20分）<br><b id="clockPlus20">--:--:--</b></div>
+      <div class="clockitem">券在庫<br><b id="clockStock">-- 枚</b></div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="calc">料金計算</button>
+    <button class="tab" data-tab="lots">駐車場管理</button>
+    <button class="tab" data-tab="holidays">祝日設定</button>
+    <button class="tab" data-tab="stock">券在庫管理</button>
+  </div>
+
+  <div class="panelbody">
+
+    <!-- 料金計算 -->
+    <div class="tabpage" id="page-calc">
+      <div id="calcAlert"></div>
+      <div class="row">
+        <div>
+          <label>駐車場</label>
+          <select id="lotSelect"></select>
+        </div>
+        <div>
+          <label>入庫時刻</label>
+          <input type="datetime-local" id="startInput">
+        </div>
+      </div>
+      <button class="btn" id="calcBtn">現在時刻+20分で計算する</button>
+      <div class="stub-wrap" id="stubWrap" style="display:none;"></div>
+      <div class="section-title" style="margin-top:26px;">直近の計算履歴</div>
+      <div id="historyList"></div>
+    </div>
+
+    <!-- 駐車場管理 -->
+    <div class="tabpage" id="page-lots" style="display:none;">
+      <div class="section-title">登録済みの契約駐車場</div>
+      <div id="lotList"></div>
+
+      <div class="section-title" id="editorTitle" style="margin-top:24px;">駐車場を追加</div>
+
+      <div class="row">
+        <div><label>名称</label><input type="text" id="f_name" placeholder="例）第一駐車場"></div>
+      </div>
+      <div class="check-row">
+        <input type="checkbox" id="f_weekendHoliday">
+        <label for="f_weekendHoliday">土・日も休日料金として扱う（「祝日設定」の日付に加えて適用）</label>
+      </div>
+
+      <div class="subsection">料金体系</div>
+      <div class="radio-row">
+        <label><input type="radio" name="mode" value="flat" checked> 時間帯を分けない（フラット料金）</label>
+        <label><input type="radio" name="mode" value="bands"> 時間帯ごとに料金を設定する</label>
+      </div>
+
+      <!-- flat mode -->
+      <div id="flatBox">
+        <div class="row">
+          <div><label>平日　○分ごとに　円</label>
+            <div style="display:flex; gap:6px;">
+              <input type="number" id="ff_wd_unitMin" min="1" step="1" placeholder="分" style="width:45%;">
+              <input type="number" id="ff_wd_unitPrice" min="0" step="1" placeholder="円" style="width:55%;">
+            </div>
+          </div>
+          <div><label>平日 上限（円・任意）</label><input type="number" id="ff_wd_max" min="0" step="1" placeholder="なし"></div>
+        </div>
+        <div class="check-row">
+          <input type="checkbox" id="ff_holidayDiffer">
+          <label for="ff_holidayDiffer">休日は別料金にする</label>
+        </div>
+        <div class="row" id="ff_holidayRow" style="display:none;">
+          <div><label>休日　○分ごとに　円</label>
+            <div style="display:flex; gap:6px;">
+              <input type="number" id="ff_ho_unitMin" min="1" step="1" placeholder="分" style="width:45%;">
+              <input type="number" id="ff_ho_unitPrice" min="0" step="1" placeholder="円" style="width:55%;">
+            </div>
+          </div>
+          <div><label>休日 上限（円・任意）</label><input type="number" id="ff_ho_max" min="0" step="1" placeholder="なし"></div>
+        </div>
+      </div>
+
+      <!-- bands mode -->
+      <div id="bandsBox" style="display:none;">
+        <div id="bandListBox"></div>
+        <div class="card-box">
+          <div class="row">
+            <div><label>呼び名</label><input type="text" id="fb_label" placeholder="例）昼間"></div>
+            <div><label>適用曜日</label>
+              <select id="fb_dayType">
+                <option value="both">平日・休日 両方</option>
+                <option value="weekday">平日のみ</option>
+                <option value="holiday">休日のみ</option>
+              </select>
+            </div>
+          </div>
+          <div class="row">
+            <div><label>開始時刻</label><input type="time" id="fb_start" value="08:00"></div>
+            <div><label>終了時刻</label><input type="time" id="fb_end" value="22:00"></div>
+          </div>
+          <div class="row">
+            <div><label>○分ごとに　円</label>
+              <div style="display:flex; gap:6px;">
+                <input type="number" id="fb_unitMin" min="1" step="1" placeholder="分" style="width:45%;">
+                <input type="number" id="fb_unitPrice" min="0" step="1" placeholder="円" style="width:55%;">
+              </div>
+            </div>
+            <div><label>この時間帯の上限（円・任意）</label><input type="number" id="fb_max" min="0" step="1" placeholder="なし"></div>
+          </div>
+          <button class="btn secondary small" id="addBandBtn">この時間帯を追加</button>
+          <div class="helptext">例：7:00〜19:00 / 20分ごとに100円 / 上限1200円　のように追加していきます。24時間分をすき間なくカバーしてください。</div>
+        </div>
+      </div>
+
+      <div class="subsection">駐車全体にかかる上限（任意）</div>
+      <div id="capListBox"></div>
+      <div class="card-box">
+        <div class="row">
+          <div><label>適用曜日</label>
+            <select id="fc_dayType">
+              <option value="both">平日・休日 両方</option>
+              <option value="weekday">平日のみ</option>
+              <option value="holiday">休日のみ</option>
+            </select>
+          </div>
+          <div><label>リセット方法</label>
+            <select id="fc_resetType">
+              <option value="calendarDay">暦日（0時）ごとにリセット</option>
+              <option value="rolling24h">入庫から24時間ごとにリセット</option>
+              <option value="wholeStay">今回の駐車全体で1回だけ</option>
+            </select>
+          </div>
+          <div><label>上限金額（円）</label><input type="number" id="fc_amount" min="0" step="1"></div>
+        </div>
+        <button class="btn secondary small" id="addCapBtn">この上限を追加</button>
+        <div class="helptext">例：「24時間ごとにリセット・上限1200円」＝24時間最大1200円。「休日のみ・暦日ごと・上限600円」＝休日は1日最大600円。</div>
+      </div>
+
+      <div style="margin-top:18px; display:flex; gap:10px;">
+        <button class="btn" id="saveLotBtn">この内容で駐車場を保存</button>
+        <button class="btn secondary" id="cancelEditBtn" style="display:none;">編集をキャンセル</button>
+      </div>
+    </div>
+
+    <!-- 祝日設定 -->
+    <div class="tabpage" id="page-holidays" style="display:none;">
+      <div class="section-title">休日として扱う日付</div>
+      <div class="helptext" style="margin-bottom:14px;">
+        国民の祝日は年により変動するため自動データは持たせていません。休業日・祝日・年末年始など休日料金を適用したい日をここに登録してください。
+      </div>
+      <div class="row">
+        <div><label>日付を追加</label><input type="date" id="holidayInput"></div>
+        <div style="flex:0 0 auto; align-self:flex-end;"><button class="btn small" id="addHolidayBtn">追加</button></div>
+      </div>
+      <div id="holidayList"></div>
+    </div>
+
+    <!-- 券在庫管理 -->
+    <div class="tabpage" id="page-stock" style="display:none;">
+      <div class="section-title">駐車券（100円分）在庫</div>
+      <div id="stockAlertArea"></div>
+      <div class="row">
+        <div><label>現在の在庫枚数</label><input type="number" id="stockCount" min="0" step="1"></div>
+        <div><label>発注アラートのしきい値（この枚数以下で警告）</label><input type="number" id="stockThreshold" min="0" step="1"></div>
+      </div>
+      <button class="btn" id="saveStockBtn">保存する</button>
+      <div class="helptext" style="margin-top:10px;">料金計算画面で「在庫から差し引く」を押すと、必要になった枚数がここから自動で減ります。</div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function(){
+  const S = window.storage;
+  let lots = [], holidays = [], inventory = {stock:0,threshold:10}, history = [];
+  let pendingBands = [], pendingCaps = [], editingLotId = null;
+  let lastCalc = null;
+
+  const $ = id => document.getElementById(id);
+  const pad = n => String(n).padStart(2,'0');
+  const uid = p => p + '_' + Date.now() + '_' + Math.floor(Math.random()*10000);
+
+  async function loadAll(){
+    try{ const r = await S.get('lots'); lots = r ? JSON.parse(r.value) : []; }catch(e){ lots = []; }
+    try{ const r = await S.get('holidays'); holidays = r ? JSON.parse(r.value) : []; }catch(e){ holidays = []; }
+    try{ const r = await S.get('inventory'); inventory = r ? JSON.parse(r.value) : {stock:0,threshold:10}; }catch(e){ inventory = {stock:0,threshold:10}; }
+    try{ const r = await S.get('history'); history = r ? JSON.parse(r.value) : []; }catch(e){ history = []; }
+  }
+  const saveLots = async () => { try{ await S.set('lots', JSON.stringify(lots), false); }catch(e){} };
+  const saveHolidays = async () => { try{ await S.set('holidays', JSON.stringify(holidays), false); }catch(e){} };
+  const saveInventory = async () => { try{ await S.set('inventory', JSON.stringify(inventory), false); }catch(e){} };
+  const saveHistory = async () => { try{ await S.set('history', JSON.stringify(history), false); }catch(e){} };
+
+  function fmtDateTime(d){ return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+  function fmtTime(d){ return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; }
+  function ymd(d){ return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  function isHolidayDate(d, lot){
+    const day = d.getDay();
+    if (holidays.includes(ymd(d))) return true;
+    if (lot.weekendHoliday && (day===0 || day===6)) return true;
+    return false;
+  }
+  function dayTypeOf(d, lot){ return isHolidayDate(d, lot) ? 'holiday' : 'weekday'; }
+  function inTimeRange(d, start, end){
+    const mins = d.getHours()*60 + d.getMinutes();
+    const [sh,sm] = start.split(':').map(Number);
+    const [eh,em] = end.split(':').map(Number);
+    const s = sh*60+sm, e = eh*60+em;
+    if (s === e) return true; // 00:00-00:00 = whole day
+    if (s < e) return mins >= s && mins < e;
+    return mins >= s || mins < e;
+  }
+
+  function bandsForLot(lot){
+    if (lot.timeBandsEnabled) return lot.bands;
+    const b = [];
+    b.push({ id:'flat_wd', dayType:'weekday', start:'00:00', end:'00:00', unitMinutes: lot.flat.weekday.unitMinutes, unitPrice: lot.flat.weekday.unitPrice, maxFee: lot.flat.weekday.maxFee });
+    if (lot.flat.holiday){
+      b.push({ id:'flat_ho', dayType:'holiday', start:'00:00', end:'00:00', unitMinutes: lot.flat.holiday.unitMinutes, unitPrice: lot.flat.holiday.unitPrice, maxFee: lot.flat.holiday.maxFee });
+    } else {
+      b.push({ id:'flat_ho', dayType:'holiday', start:'00:00', end:'00:00', unitMinutes: lot.flat.weekday.unitMinutes, unitPrice: lot.flat.weekday.unitPrice, maxFee: lot.flat.weekday.maxFee });
+    }
+    return b;
+  }
+  function matchBand(d, lot){
+    const dt = dayTypeOf(d, lot);
+    const bands = bandsForLot(lot);
+    for (const b of bands){
+      if (b.dayType !== 'both' && b.dayType !== dt) continue;
+      if (inTimeRange(d, b.start, b.end)) return b;
+    }
+    return null;
+  }
+
+  // ---------- fee engine ----------
+  function calcFee(startDate, endDate, lot){
+    const totalMinutes = Math.max(0, Math.ceil((endDate - startDate) / 60000));
+    // build minute-by-minute band assignment, collapsed into contiguous segments
+    const segments = [];
+    let cur = null;
+    let uncoveredMinutes = 0;
+    for (let i=0; i<totalMinutes; i++){
+      const t = new Date(startDate.getTime() + i*60000);
+      const band = matchBand(t, lot);
+      const key = band ? band.id : null;
+      if (!band) uncoveredMinutes++;
+      if (cur && cur.key === key){
+        cur.minutes++;
+      } else {
+        cur = { key, band, startTime: t, minutes: 1 };
+        segments.push(cur);
+      }
+    }
+    // segment fee (block pricing + band-level max)
+    segments.forEach(seg=>{
+      if (!seg.band){ seg.fee = 0; return; }
+      const unit = Math.max(1, seg.band.unitMinutes || 1);
+      let fee = Math.ceil(seg.minutes / unit) * (seg.band.unitPrice || 0);
+      if (seg.band.maxFee != null && seg.band.maxFee !== '' && !isNaN(seg.band.maxFee)){
+        fee = Math.min(fee, Number(seg.band.maxFee));
+      }
+      seg.fee = fee;
+    });
+    let subtotal = segments.reduce((s,x)=>s+x.fee,0);
+
+    // global caps
+    let totalDeduction = 0;
+    const capBreakdown = [];
+    (lot.globalCaps||[]).forEach(cap=>{
+      const groups = {};
+      segments.forEach(seg=>{
+        if (!seg.band) return;
+        const dt = dayTypeOf(seg.startTime, lot);
+        if (cap.dayType !== 'both' && cap.dayType !== dt) return;
+        let gkey;
+        if (cap.resetType === 'calendarDay') gkey = ymd(seg.startTime);
+        else if (cap.resetType === 'rolling24h') gkey = Math.floor((seg.startTime - startDate) / (24*3600*1000));
+        else gkey = 'all';
+        groups[gkey] = (groups[gkey]||0) + seg.fee;
+      });
+      let capDeduction = 0;
+      Object.keys(groups).forEach(k=>{
+        const raw = groups[k];
+        if (raw > cap.amount){
+          capDeduction += (raw - cap.amount);
+        }
+      });
+      if (capDeduction > 0){
+        totalDeduction += capDeduction;
+        capBreakdown.push({ cap, deduction: capDeduction });
+      }
+    });
+
+    let fee = Math.max(0, subtotal - totalDeduction);
+    fee = Math.round(fee);
+    const ticketCount = Math.ceil(fee/100);
+    const ticketValue = ticketCount*100;
+    return { totalMinutes, fee, ticketValue, ticketCount, uncoveredMinutes, capBreakdown };
+  }
+
+  // ---------- rendering: lot select / list ----------
+  function renderLotSelect(){
+    const sel = $('lotSelect');
+    sel.innerHTML = '';
+    if (lots.length===0){
+      const o=document.createElement('option'); o.textContent='駐車場が未登録です'; o.value=''; sel.appendChild(o); return;
+    }
+    lots.forEach(l=>{
+      const o=document.createElement('option'); o.value=l.id; o.textContent=l.name; sel.appendChild(o);
+    });
+  }
+
+  function summarizeLot(lot){
+    if (!lot.timeBandsEnabled){
+      const wd = lot.flat.weekday;
+      let s = `フラット料金：平日 ${wd.unitMinutes}分/${wd.unitPrice}円${wd.maxFee!=null?`（上限${wd.maxFee}円）`:''}`;
+      if (lot.flat.holiday){
+        const ho = lot.flat.holiday;
+        s += `　休日 ${ho.unitMinutes}分/${ho.unitPrice}円${ho.maxFee!=null?`（上限${ho.maxFee}円）`:''}`;
+      }
+      return s;
+    }
+    const labelMap = {weekday:'平日',holiday:'休日',both:'平日/休日'};
+    return lot.bands.map(b=>`${b.label||'時間帯'}(${labelMap[b.dayType]} ${b.start}-${b.end})：${b.unitMinutes}分/${b.unitPrice}円${b.maxFee!=null?`上限${b.maxFee}円`:''}`).join('　');
+  }
+  function summarizeCaps(lot){
+    if (!lot.globalCaps || lot.globalCaps.length===0) return '';
+    const labelMap = {weekday:'平日',holiday:'休日',both:'平日/休日'};
+    const resetMap = {calendarDay:'暦日ごと',rolling24h:'24時間ごと',wholeStay:'滞在全体で1回'};
+    return '上限：' + lot.globalCaps.map(c=>`${labelMap[c.dayType]}/${resetMap[c.resetType]}/${c.amount}円`).join('　');
+  }
+
+  function renderLotList(){
+    const box = $('lotList');
+    box.innerHTML = '';
+    if (lots.length===0){
+      box.innerHTML = '<div class="empty-note">まだ駐車場が登録されていません。下のフォームから追加してください。</div>';
+      return;
+    }
+    lots.forEach(l=>{
+      const div = document.createElement('div');
+      div.className = 'card-box lotcard';
+      div.innerHTML = `
+        <div>
+          <div class="name">${escapeHtml(l.name)}${l.weekendHoliday?'　<span style="color:var(--mute);font-weight:400;font-size:11px;">（土日=休日）</span>':''}</div>
+          <div class="meta">${escapeHtml(summarizeLot(l))}</div>
+          <div class="meta">${escapeHtml(summarizeCaps(l))}</div>
+        </div>
+        <div class="btns">
+          <button class="btn secondary small" data-act="edit" data-id="${l.id}">編集</button>
+          <button class="btn danger" data-act="del" data-id="${l.id}">削除</button>
+        </div>
+      `;
+      div.querySelector('[data-act=edit]').addEventListener('click', ()=>loadLotIntoForm(l.id));
+      div.querySelector('[data-act=del]').addEventListener('click', async ()=>{
+        if (!confirm(`「${l.name}」を削除しますか？`)) return;
+        lots = lots.filter(x=>x.id!==l.id);
+        await saveLots();
+        renderLotList(); renderLotSelect();
+      });
+      box.appendChild(div);
+    });
+  }
+
+  // ---------- lot editor form ----------
+  function renderPendingBands(){
+    const box = $('bandListBox');
+    box.innerHTML = '';
+    if (pendingBands.length===0){
+      box.innerHTML = '<div class="empty-note">時間帯が未追加です。下のフォームから追加してください。</div>';
+      return;
+    }
+    const labelMap = {weekday:'平日',holiday:'休日',both:'両方'};
+    pendingBands.forEach((b,idx)=>{
+      const row = document.createElement('div');
+      row.className = 'minirow';
+      row.innerHTML = `<span>${escapeHtml(b.label||'時間帯')}｜${labelMap[b.dayType]}｜${b.start}-${b.end}｜${b.unitMinutes}分/${b.unitPrice}円${b.maxFee!=null?`｜上限${b.maxFee}円`:''}</span><button>×</button>`;
+      row.querySelector('button').addEventListener('click', ()=>{ pendingBands.splice(idx,1); renderPendingBands(); });
+      box.appendChild(row);
+    });
+  }
+  function renderPendingCaps(){
+    const box = $('capListBox');
+    box.innerHTML = '';
+    if (pendingCaps.length===0){
+      box.innerHTML = '<div class="empty-note">全体の上限は未設定です（任意）。</div>';
+      return;
+    }
+    const labelMap = {weekday:'平日',holiday:'休日',both:'両方'};
+    const resetMap = {calendarDay:'暦日ごと',rolling24h:'24時間ごと',wholeStay:'滞在全体1回'};
+    pendingCaps.forEach((c,idx)=>{
+      const row = document.createElement('div');
+      row.className = 'minirow';
+      row.innerHTML = `<span>${labelMap[c.dayType]}｜${resetMap[c.resetType]}｜上限 ${c.amount}円</span><button>×</button>`;
+      row.querySelector('button').addEventListener('click', ()=>{ pendingCaps.splice(idx,1); renderPendingCaps(); });
+      box.appendChild(row);
+    });
+  }
+
+  function resetForm(){
+    editingLotId = null;
+    $('editorTitle').textContent = '駐車場を追加';
+    $('saveLotBtn').textContent = 'この内容で駐車場を保存';
+    $('cancelEditBtn').style.display = 'none';
+    $('f_name').value = '';
+    $('f_weekendHoliday').checked = false;
+    document.querySelector('input[name=mode][value=flat]').checked = true;
+    $('flatBox').style.display = 'block';
+    $('bandsBox').style.display = 'none';
+    ['ff_wd_unitMin','ff_wd_unitPrice','ff_wd_max','ff_ho_unitMin','ff_ho_unitPrice','ff_ho_max'].forEach(id=>$(id).value='');
+    $('ff_holidayDiffer').checked = false;
+    $('ff_holidayRow').style.display = 'none';
+    pendingBands = [];
+    pendingCaps = [];
+    renderPendingBands();
+    renderPendingCaps();
+    ['fb_label','fb_unitMin','fb_unitPrice','fb_max'].forEach(id=>$(id).value='');
+    $('fc_amount').value = '';
+  }
+
+  function loadLotIntoForm(id){
+    const l = lots.find(x=>x.id===id);
+    if (!l) return;
+    editingLotId = id;
+    $('editorTitle').textContent = `「${l.name}」を編集`;
+    $('saveLotBtn').textContent = 'この内容で更新する';
+    $('cancelEditBtn').style.display = 'inline-block';
+    $('f_name').value = l.name;
+    $('f_weekendHoliday').checked = !!l.weekendHoliday;
+    if (l.timeBandsEnabled){
+      document.querySelector('input[name=mode][value=bands]').checked = true;
+      $('flatBox').style.display = 'none';
+      $('bandsBox').style.display = 'block';
+      pendingBands = JSON.parse(JSON.stringify(l.bands));
+    } else {
+      document.querySelector('input[name=mode][value=flat]').checked = true;
+      $('flatBox').style.display = 'block';
+      $('bandsBox').style.display = 'none';
+      $('ff_wd_unitMin').value = l.flat.weekday.unitMinutes;
+      $('ff_wd_unitPrice').value = l.flat.weekday.unitPrice;
+      $('ff_wd_max').value = l.flat.weekday.maxFee!=null ? l.flat.weekday.maxFee : '';
+      if (l.flat.holiday){
+        $('ff_holidayDiffer').checked = true;
+        $('ff_holidayRow').style.display = 'flex';
+        $('ff_ho_unitMin').value = l.flat.holiday.unitMinutes;
+        $('ff_ho_unitPrice').value = l.flat.holiday.unitPrice;
+        $('ff_ho_max').value = l.flat.holiday.maxFee!=null ? l.flat.holiday.maxFee : '';
+      } else {
+        $('ff_holidayDiffer').checked = false;
+        $('ff_holidayRow').style.display = 'none';
+      }
+      pendingBands = [];
+    }
+    pendingCaps = JSON.parse(JSON.stringify(l.globalCaps||[]));
+    renderPendingBands();
+    renderPendingCaps();
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.querySelector('.tab[data-tab=lots]').classList.add('active');
+    document.querySelectorAll('.tabpage').forEach(p=>p.style.display='none');
+    $('page-lots').style.display = 'block';
+    window.scrollTo({top: document.body.scrollHeight, behavior:'smooth'});
+  }
+
+  document.querySelectorAll('input[name=mode]').forEach(r=>{
+    r.addEventListener('change', ()=>{
+      const v = document.querySelector('input[name=mode]:checked').value;
+      $('flatBox').style.display = v==='flat' ? 'block' : 'none';
+      $('bandsBox').style.display = v==='bands' ? 'block' : 'none';
+    });
+  });
+  $('ff_holidayDiffer').addEventListener('change', ()=>{
+    $('ff_holidayRow').style.display = $('ff_holidayDiffer').checked ? 'flex' : 'none';
+  });
+
+  $('addBandBtn').addEventListener('click', ()=>{
+    const unitMin = parseInt($('fb_unitMin').value,10);
+    const unitPrice = parseFloat($('fb_unitPrice').value);
+    if (isNaN(unitMin) || unitMin<=0 || isNaN(unitPrice)){
+      alert('単位分・単位料金を正しく入力してください。');
+      return;
+    }
+    const maxRaw = $('fb_max').value;
+    pendingBands.push({
+      id: uid('band'),
+      label: $('fb_label').value.trim(),
+      dayType: $('fb_dayType').value,
+      start: $('fb_start').value || '00:00',
+      end: $('fb_end').value || '00:00',
+      unitMinutes: unitMin,
+      unitPrice: unitPrice,
+      maxFee: maxRaw==='' ? null : parseFloat(maxRaw)
+    });
+    renderPendingBands();
+    ['fb_label','fb_unitMin','fb_unitPrice','fb_max'].forEach(id=>$(id).value='');
+  });
+
+  $('addCapBtn').addEventListener('click', ()=>{
+    const amount = parseFloat($('fc_amount').value);
+    if (isNaN(amount) || amount<=0){ alert('上限金額を正しく入力してください。'); return; }
+    pendingCaps.push({
+      id: uid('cap'),
+      dayType: $('fc_dayType').value,
+      resetType: $('fc_resetType').value,
+      amount
+    });
+    renderPendingCaps();
+    $('fc_amount').value = '';
+  });
+
+  $('saveLotBtn').addEventListener('click', async ()=>{
+    const name = $('f_name').value.trim();
+    if (!name){ alert('名称を入力してください。'); return; }
+    const mode = document.querySelector('input[name=mode]:checked').value;
+    const weekendHoliday = $('f_weekendHoliday').checked;
+
+    let lot = { id: editingLotId || uid('lot'), name, weekendHoliday, timeBandsEnabled: mode==='bands' };
+
+    if (mode==='flat'){
+      const wdMin = parseInt($('ff_wd_unitMin').value,10);
+      const wdPrice = parseFloat($('ff_wd_unitPrice').value);
+      if (isNaN(wdMin) || wdMin<=0 || isNaN(wdPrice)){
+        alert('平日の単位分・単位料金を入力してください。'); return;
+      }
+      const wdMaxRaw = $('ff_wd_max').value;
+      lot.flat = { weekday: { unitMinutes: wdMin, unitPrice: wdPrice, maxFee: wdMaxRaw===''?null:parseFloat(wdMaxRaw) }, holiday: null };
+      if ($('ff_holidayDiffer').checked){
+        const hoMin = parseInt($('ff_ho_unitMin').value,10);
+        const hoPrice = parseFloat($('ff_ho_unitPrice').value);
+        if (isNaN(hoMin) || hoMin<=0 || isNaN(hoPrice)){
+          alert('休日の単位分・単位料金を入力してください。'); return;
+        }
+        const hoMaxRaw = $('ff_ho_max').value;
+        lot.flat.holiday = { unitMinutes: hoMin, unitPrice: hoPrice, maxFee: hoMaxRaw===''?null:parseFloat(hoMaxRaw) };
+      }
+    } else {
+      if (pendingBands.length===0){ alert('時間帯を1つ以上追加してください。'); return; }
+      lot.bands = pendingBands;
+    }
+    lot.globalCaps = pendingCaps;
+
+    if (editingLotId){
+      const idx = lots.findIndex(x=>x.id===editingLotId);
+      lots[idx] = lot;
+    } else {
+      lots.push(lot);
+    }
+    await saveLots();
+    renderLotList(); renderLotSelect();
+    resetForm();
+  });
+  $('cancelEditBtn').addEventListener('click', resetForm);
+
+  // ---------- holidays ----------
+  function renderHolidayList(){
+    const box = $('holidayList');
+    box.innerHTML = '';
+    if (holidays.length===0){ box.innerHTML = '<div class="empty-note">登録済みの休日はありません。</div>'; return; }
+    holidays.slice().sort().forEach(h=>{
+      const pill = document.createElement('span');
+      pill.className = 'tagpill';
+      pill.innerHTML = `${h} <button title="削除">×</button>`;
+      pill.querySelector('button').addEventListener('click', async ()=>{
+        holidays = holidays.filter(x=>x!==h);
+        await saveHolidays(); renderHolidayList();
+      });
+      box.appendChild(pill);
+    });
+  }
+  $('addHolidayBtn').addEventListener('click', async ()=>{
+    const v = $('holidayInput').value;
+    if (!v) return;
+    if (!holidays.includes(v)) holidays.push(v);
+    await saveHolidays(); renderHolidayList();
+    $('holidayInput').value = '';
+  });
+
+  // ---------- stock ----------
+  function renderStockFields(){
+    $('stockCount').value = inventory.stock;
+    $('stockThreshold').value = inventory.threshold;
+    renderStockAlert();
+    $('clockStock').textContent = `${inventory.stock} 枚`;
+  }
+  function renderStockAlert(){
+    const area = $('stockAlertArea');
+    area.innerHTML = '';
+    if (inventory.stock <= inventory.threshold){
+      const d = document.createElement('div');
+      d.className = 'alertbox';
+      d.textContent = `在庫が ${inventory.stock} 枚です（しきい値 ${inventory.threshold} 枚以下）。駐車券の発注を検討してください。`;
+      area.appendChild(d);
+    }
+  }
+  $('saveStockBtn').addEventListener('click', async ()=>{
+    const stock = parseInt($('stockCount').value,10);
+    const threshold = parseInt($('stockThreshold').value,10);
+    inventory.stock = isNaN(stock) ? inventory.stock : stock;
+    inventory.threshold = isNaN(threshold) ? inventory.threshold : threshold;
+    await saveInventory(); renderStockFields();
+  });
+
+  // ---------- history ----------
+  function renderHistory(){
+    const box = $('historyList');
+    box.innerHTML = '';
+    if (history.length===0){ box.innerHTML = '<div class="empty-note">計算履歴はまだありません。</div>'; return; }
+    history.slice().reverse().forEach(h=>{
+      const d = document.createElement('div');
+      d.className = 'histitem';
+      d.innerHTML = `<span>${h.time}　<b>${escapeHtml(h.lotName)}</b>　${h.start}〜${h.end}</span><span><b>¥${h.fee}</b> / ${h.tickets}枚</span>`;
+      box.appendChild(d);
+    });
+  }
+
+  // ---------- calc flow ----------
+  function renderStub(lot, startDate, endDate, result){
+    const wrap = $('stubWrap');
+    wrap.style.display = 'flex';
+    let warn = '';
+    if (result.uncoveredMinutes > 0){
+      warn = `<div class="warnbox">${result.uncoveredMinutes}分は料金設定が見つからず0円で計算しました。時間帯の設定漏れがないか確認してください。</div>`;
+    }
+    wrap.innerHTML = `
+      <div style="width:100%;max-width:440px;">
+      <div class="stub">
+        <div class="lotname">${escapeHtml(lot.name)}</div>
+        <div class="amount">¥${result.ticketValue.toLocaleString()} <span>（実費 ¥${result.fee.toLocaleString()}）</span></div>
+        <div class="ticketcount">必要チケット：${result.ticketCount} 枚</div>
+        <div class="perf"></div>
+        <div class="rows">
+          <div class="r"><span class="k">入庫</span><span class="v">${fmtDateTime(startDate)}</span></div>
+          <div class="r"><span class="k">精算（現在+20分）</span><span class="v">${fmtDateTime(endDate)}</span></div>
+          <div class="r"><span class="k">駐車時間</span><span class="v">${result.totalMinutes} 分</span></div>
+        </div>
+        <div class="barcode"></div>
+      </div>
+      ${warn}
+      </div>
+    `;
+  }
+
+  async function runCalc(){
+    $('calcAlert').innerHTML = '';
+    const lotId = $('lotSelect').value;
+    const lot = lots.find(l=>l.id===lotId);
+    if (!lot){ $('calcAlert').innerHTML = '<div class="alertbox">駐車場を選択してください（未登録の場合は「駐車場管理」タブから追加してください）。</div>'; return; }
+    const startVal = $('startInput').value;
+    if (!startVal){ $('calcAlert').innerHTML = '<div class="alertbox">入庫時刻を入力してください。</div>'; return; }
+    const startDate = new Date(startVal);
+    const now = new Date();
+    const endDate = new Date(now.getTime() + 20*60000);
+    if (endDate <= startDate){ $('calcAlert').innerHTML = '<div class="alertbox">入庫時刻が現在時刻より後になっています。確認してください。</div>'; return; }
+
+    const result = calcFee(startDate, endDate, lot);
+    renderStub(lot, startDate, endDate, result);
+    lastCalc = { lot, startDate, endDate, result };
+
+    const wrap = $('stubWrap');
+    const btnRow = document.createElement('div');
+    btnRow.style.marginTop = '14px';
+    btnRow.style.display = 'flex';
+    btnRow.style.justifyContent = 'center';
+    btnRow.innerHTML = `<button class="btn secondary" id="commitBtn">この枚数を在庫から差し引いて記録する</button>`;
+    wrap.appendChild(btnRow);
+    $('commitBtn').addEventListener('click', commitCalc);
+  }
+
+  async function commitCalc(){
+    if (!lastCalc) return;
+    const { lot, startDate, endDate, result } = lastCalc;
+    if (inventory.stock < result.ticketCount){
+      $('calcAlert').innerHTML = `<div class="alertbox">在庫（${inventory.stock}枚）が必要枚数（${result.ticketCount}枚）に足りません。先に在庫を補充してください。</div>`;
+      return;
+    }
+    inventory.stock -= result.ticketCount;
+    await saveInventory(); renderStockFields();
+    history.push({ time: fmtDateTime(new Date()), lotName: lot.name, start: fmtDateTime(startDate), end: fmtDateTime(endDate), fee: result.ticketValue, tickets: result.ticketCount });
+    if (history.length>30) history = history.slice(history.length-30);
+    await saveHistory(); renderHistory();
+    $('calcAlert').innerHTML = '<div class="okbox">記録しました。在庫を更新しています。</div>';
+  }
+  $('calcBtn').addEventListener('click', runCalc);
+
+  // ---------- tabs ----------
+  document.querySelectorAll('.tab').forEach(tab=>{
+    tab.addEventListener('click', ()=>{
+      document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+      tab.classList.add('active');
+      document.querySelectorAll('.tabpage').forEach(p=>p.style.display='none');
+      $('page-'+tab.dataset.tab).style.display = 'block';
+    });
+  });
+
+  // ---------- clock ----------
+  function tickClock(){
+    const now = new Date();
+    const plus20 = new Date(now.getTime()+20*60000);
+    $('clockNow').textContent = fmtTime(now);
+    $('clockPlus20').textContent = fmtTime(plus20) + ' (' + fmtDateTime(plus20).split(' ')[1] + ')';
+  }
+  setInterval(tickClock, 1000);
+
+  // ---------- init ----------
+  async function init(){
+    await loadAll();
+    renderLotSelect(); renderLotList(); renderHolidayList(); renderStockFields(); renderHistory();
+    resetForm();
+    tickClock();
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    $('startInput').value = now.toISOString().slice(0,16);
+  }
+  init();
+})();
+</script>
+</body>
+</html>
