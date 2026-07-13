@@ -1,0 +1,44 @@
+{
+  "lots": [
+    {
+      "id": "lot_1783927986313_4934",
+      "name": "久米加(株)パーキング 県庁前",
+      "weekendHoliday": false,
+      "timeBandsEnabled": true,
+      "bands": [
+        {
+          "id": "band_1783927901073_3373",
+          "label": "昼間",
+          "dayType": "weekday",
+          "start": "08:00",
+          "end": "20:00",
+          "unitMinutes": 20,
+          "unitPrice": 100,
+          "maxFee": null
+        },
+        {
+          "id": "band_1783927935515_1931",
+          "label": "夜間",
+          "dayType": "weekday",
+          "start": "20:00",
+          "end": "08:00",
+          "unitMinutes": 60,
+          "unitPrice": 100,
+          "maxFee": 500
+        },
+        {
+          "id": "band_1783927975705_7384",
+          "label": "休日",
+          "dayType": "holiday",
+          "start": "00:00",
+          "end": "23:59",
+          "unitMinutes": 60,
+          "unitPrice": 100,
+          "maxFee": null
+        }
+      ],
+      "globalCaps": []
+    }
+  ],
+  "holidays": []
+}
