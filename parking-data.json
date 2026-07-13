@@ -3,7 +3,7 @@
     {
       "id": "lot_1783927986313_4934",
       "name": "久米加(株)パーキング 県庁前",
-      "weekendHoliday": false,
+      "weekendHoliday": true,
       "timeBandsEnabled": true,
       "bands": [
         {
@@ -38,7 +38,178 @@
         }
       ],
       "globalCaps": []
+    },
+    {
+      "id": "lot_1783934136410_7542",
+      "name": "パラカ高松市天神前第1",
+      "weekendHoliday": true,
+      "timeBandsEnabled": true,
+      "bands": [
+        {
+          "id": "band_1783934080262_1086",
+          "label": "昼間",
+          "dayType": "weekday",
+          "start": "08:00",
+          "end": "20:00",
+          "unitMinutes": 40,
+          "unitPrice": 200,
+          "maxFee": null
+        },
+        {
+          "id": "band_1783934130295_7586",
+          "label": "夜間",
+          "dayType": "both",
+          "start": "20:00",
+          "end": "08:00",
+          "unitMinutes": 40,
+          "unitPrice": 200,
+          "maxFee": 300
+        }
+      ],
+      "globalCaps": [
+        {
+          "id": "cap_1783934046759_1995",
+          "dayType": "weekday",
+          "resetType": "rolling24h",
+          "amount": 1200
+        },
+        {
+          "id": "cap_1783934061725_4470",
+          "dayType": "holiday",
+          "resetType": "rolling24h",
+          "amount": 500
+        }
+      ]
+    },
+    {
+      "id": "lot_1783934610977_4441",
+      "name": "高松市立中央駐車場",
+      "weekendHoliday": true,
+      "timeBandsEnabled": true,
+      "bands": [
+        {
+          "id": "band_1783934501055_8373",
+          "label": "夜間",
+          "dayType": "both",
+          "start": "18:00",
+          "end": "08:00",
+          "unitMinutes": 25,
+          "unitPrice": 100,
+          "maxFee": 800
+        },
+        {
+          "id": "band_1783934571608_6460",
+          "label": "昼間",
+          "dayType": "weekday",
+          "start": "07:30",
+          "end": "18:00",
+          "unitMinutes": 25,
+          "unitPrice": 100,
+          "maxFee": null
+        },
+        {
+          "id": "band_1783934597806_6131",
+          "label": "昼間(休日)",
+          "dayType": "holiday",
+          "start": "07:30",
+          "end": "18:00",
+          "unitMinutes": 25,
+          "unitPrice": 100,
+          "maxFee": 1200
+        }
+      ],
+      "globalCaps": []
+    },
+    {
+      "id": "lot_1783934842595_2353",
+      "name": "テックパーキング 天神前第3",
+      "weekendHoliday": true,
+      "timeBandsEnabled": true,
+      "bands": [
+        {
+          "id": "band_1783934776935_5422",
+          "label": "昼間",
+          "dayType": "weekday",
+          "start": "08:00",
+          "end": "20:00",
+          "unitMinutes": 20,
+          "unitPrice": 100,
+          "maxFee": null
+        },
+        {
+          "id": "band_1783934799917_663",
+          "label": "夜間",
+          "dayType": "weekday",
+          "start": "20:00",
+          "end": "08:00",
+          "unitMinutes": 60,
+          "unitPrice": 100,
+          "maxFee": 500
+        },
+        {
+          "id": "band_1783934833480_4075",
+          "label": "休日",
+          "dayType": "holiday",
+          "start": "00:00",
+          "end": "23:59",
+          "unitMinutes": 120,
+          "unitPrice": 100,
+          "maxFee": null
+        }
+      ],
+      "globalCaps": []
+    },
+    {
+      "id": "lot_1783935129755_6603",
+      "name": "あなぶきパーク 天神前第3",
+      "weekendHoliday": true,
+      "timeBandsEnabled": true,
+      "bands": [
+        {
+          "id": "band_1783934934043_2256",
+          "label": "昼間",
+          "dayType": "weekday",
+          "start": "07:00",
+          "end": "19:00",
+          "unitMinutes": 20,
+          "unitPrice": 100,
+          "maxFee": null
+        },
+        {
+          "id": "band_1783935082455_3223",
+          "label": "夜間",
+          "dayType": "both",
+          "start": "19:00",
+          "end": "07:00",
+          "unitMinutes": 60,
+          "unitPrice": 100,
+          "maxFee": 300
+        },
+        {
+          "id": "band_1783935125056_9683",
+          "label": "昼間(休日)",
+          "dayType": "holiday",
+          "start": "07:00",
+          "end": "19:00",
+          "unitMinutes": 20,
+          "unitPrice": 100,
+          "maxFee": 600
+        }
+      ],
+      "globalCaps": []
     }
   ],
-  "holidays": []
+  "holidays": [
+    "2026-07-20",
+    "2026-08-11",
+    "2026-09-21",
+    "2026-09-22",
+    "2026-09-23",
+    "2026-10-12",
+    "2026-11-03",
+    "2026-11-23",
+    "2026-12-29",
+    "2026-12-30",
+    "2027-01-01"
+  ]
 }
