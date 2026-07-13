@@ -140,8 +140,12 @@
           <select id="lotSelect"></select>
         </div>
         <div>
+          <label>入庫日</label>
+          <input type="date" id="startDateInput">
+        </div>
+        <div>
           <label>入庫時刻</label>
-          <input type="datetime-local" id="startInput">
+          <input type="time" id="startTimeInput">
         </div>
       </div>
       <button class="btn" id="calcBtn">現在時刻+15分で計算する</button>
@@ -803,9 +807,10 @@
     const lotId = $('lotSelect').value;
     const lot = lots.find(l=>l.id===lotId);
     if (!lot){ $('calcAlert').innerHTML = '<div class="alertbox">駐車場を選択してください（未登録の場合は「駐車場管理」タブから追加してください）。</div>'; return; }
-    const startVal = $('startInput').value;
-    if (!startVal){ $('calcAlert').innerHTML = '<div class="alertbox">入庫時刻を入力してください。</div>'; return; }
-    const startDate = new Date(startVal);
+    const dateVal = $('startDateInput').value;
+    const timeVal = $('startTimeInput').value;
+    if (!dateVal || !timeVal){ $('calcAlert').innerHTML = '<div class="alertbox">入庫日・入庫時刻を入力してください。</div>'; return; }
+    const startDate = new Date(`${dateVal}T${timeVal}`);
     const now = new Date();
     const endDate = new Date(now.getTime() + 15*60000);
     if (endDate <= startDate){ $('calcAlert').innerHTML = '<div class="alertbox">入庫時刻が現在時刻より後になっています。確認してください。</div>'; return; }
@@ -895,8 +900,8 @@
     resetForm();
     tickClock();
     const now = new Date();
-    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-    $('startInput').value = now.toISOString().slice(0,16);
+    $('startDateInput').value = ymd(now);
+    $('startTimeInput').value = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
   }
   init();
 })();
