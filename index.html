@@ -115,10 +115,10 @@
   <div class="panel">
     <div class="eyebrow">CONTRACT PARKING / TICKET CALCULATOR</div>
     <h1>駐車料金計算ツール</h1>
-    <div class="sub">駐車場と入庫時刻を選ぶだけで、現在時刻+20分までの料金・必要チケット枚数を自動計算します</div>
+    <div class="sub">駐車場と入庫時刻を選ぶだけで、現在時刻+15分までの料金・必要チケット枚数を自動計算します</div>
     <div class="clockstrip">
       <div class="clockitem">現在時刻<br><b id="clockNow">--:--:--</b></div>
-      <div class="clockitem">精算基準（現在+20分）<br><b id="clockPlus20">--:--:--</b></div>
+      <div class="clockitem">精算基準（現在+15分）<br><b id="clockPlus20">--:--:--</b></div>
     </div>
   </div>
 
@@ -144,7 +144,7 @@
           <input type="datetime-local" id="startInput">
         </div>
       </div>
-      <button class="btn" id="calcBtn">現在時刻+20分で計算する</button>
+      <button class="btn" id="calcBtn">現在時刻+15分で計算する</button>
       <div class="stub-wrap" id="stubWrap" style="display:none;"></div>
       <div class="section-title" style="margin-top:26px;">直近の計算履歴</div>
       <div id="historyTodayTotal" class="helptext" style="font-family:var(--mono); color:var(--ticket-cream); font-size:13px; margin-bottom:10px;"></div>
@@ -788,7 +788,7 @@
         <div class="perf"></div>
         <div class="rows">
           <div class="r"><span class="k">入庫</span><span class="v">${fmtDateTime(startDate)}</span></div>
-          <div class="r"><span class="k">精算（現在+20分）</span><span class="v">${fmtDateTime(endDate)}</span></div>
+          <div class="r"><span class="k">精算（現在+15分）</span><span class="v">${fmtDateTime(endDate)}</span></div>
           <div class="r"><span class="k">駐車時間</span><span class="v">${result.totalMinutes} 分</span></div>
         </div>
         <div class="barcode"></div>
@@ -807,7 +807,7 @@
     if (!startVal){ $('calcAlert').innerHTML = '<div class="alertbox">入庫時刻を入力してください。</div>'; return; }
     const startDate = new Date(startVal);
     const now = new Date();
-    const endDate = new Date(now.getTime() + 20*60000);
+    const endDate = new Date(now.getTime() + 15*60000);
     if (endDate <= startDate){ $('calcAlert').innerHTML = '<div class="alertbox">入庫時刻が現在時刻より後になっています。確認してください。</div>'; return; }
 
     const result = calcFee(startDate, endDate, lot);
@@ -847,7 +847,7 @@
   // ---------- clock ----------
   function tickClock(){
     const now = new Date();
-    const plus20 = new Date(now.getTime()+20*60000);
+    const plus20 = new Date(now.getTime()+15*60000);
     $('clockNow').textContent = fmtTime(now);
     $('clockPlus20').textContent = fmtTime(plus20) + ' (' + fmtDateTime(plus20).split(' ')[1] + ')';
   }
