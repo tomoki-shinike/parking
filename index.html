@@ -76,6 +76,7 @@
   button.btn.secondary{background:none;border:1px solid #57606a;color:var(--ticket-cream);font-weight:400;}
   button.btn.danger{background:none;border:1px solid var(--barrier-red);color:var(--barrier-red);font-weight:400;padding:6px 10px;font-size:12px;}
   button.btn.small{padding:7px 12px;font-size:12px;}
+  button.btn.secondary.confirmed{border:1.5px solid var(--good);color:var(--good);font-weight:700;}
 
   /* larger, easier-to-read controls on the main calc screen (all ages) */
   #lotSelect, #startTimeInput{font-size:19px;padding:13px 12px;}
@@ -330,7 +331,8 @@
           <div style="font-family:var(--mono); font-size:12px; color:var(--mute);">認識された文字列</div>
           <div id="ocrRawText" style="font-family:var(--mono); font-size:13px; margin:6px 0 12px; word-break:break-all; min-height:1.4em;"></div>
           <div style="font-family:var(--mono); font-size:12px; color:var(--mute);">時刻候補</div>
-          <div id="ocrTimeCandidate" style="font-family:var(--mono); font-size:28px; font-weight:700; color:var(--line-yellow); margin:4px 0 12px;">--:--</div>
+          <div id="ocrTimeCandidate" style="font-family:var(--mono); font-size:28px; font-weight:700; color:var(--line-yellow); margin:4px 0 6px;">--:--</div>
+          <div id="ocrConfidenceBadge" style="font-family:var(--mono); font-size:11.5px; color:var(--mute); margin-bottom:12px;">まだ候補がありません</div>
           <button class="btn secondary small" id="ocrApplyBtn" disabled>この時刻を入庫時刻に反映して「料金計算」タブへ</button>
         </div>
       </div>
@@ -932,6 +934,7 @@
 
   // ---------- camera OCR test (experimental) ----------
   let ocrStream = null, ocrTimer = null, ocrBusy = false;
+  let ocrLastCandidate = null, ocrMatchStreak = 0;
 
   function loadTesseractLib(){
     return new Promise((resolve, reject)=>{
@@ -942,6 +945,20 @@
       s.onerror = () => reject(new Error('tesseract load failed'));
       document.head.appendChild(s);
     });
+  }
+
+  function updateOcrConfidenceUI(){
+    const btn = $('ocrApplyBtn');
+    const badge = $('ocrConfidenceBadge');
+    if (ocrMatchStreak >= 2){
+      btn.classList.add('confirmed');
+      badge.textContent = `✓ ${ocrMatchStreak}回連続で一致（安定認識）`;
+      badge.style.color = 'var(--good)';
+    } else {
+      btn.classList.remove('confirmed');
+      badge.textContent = '認識中…目視で確認のうえ反映してください';
+      badge.style.color = 'var(--mute)';
+    }
   }
 
   async function runOcrTick(){
@@ -962,15 +979,22 @@
       if (m){
         const hh = m[1].padStart(2,'0');
         const mm = m[2];
-        $('ocrTimeCandidate').textContent = `${hh}:${mm}`;
+        const candidate = `${hh}:${mm}`;
+        if (candidate === ocrLastCandidate){
+          ocrMatchStreak++;
+        } else {
+          ocrLastCandidate = candidate;
+          ocrMatchStreak = 1;
+        }
+        $('ocrTimeCandidate').textContent = candidate;
         $('ocrApplyBtn').disabled = false;
-        $('ocrApplyBtn').dataset.time = `${hh}:${mm}`;
-      } else {
-        $('ocrTimeCandidate').textContent = '--:--';
-        $('ocrApplyBtn').disabled = true;
+        $('ocrApplyBtn').dataset.time = candidate;
+        updateOcrConfidenceUI();
       }
+      // 読み取れなかったコマは無視し、直前の候補・確定ボタンの状態をそのまま維持する
+      // （カメラが一時的に券から外れても、表示中の候補は消さない）
     }catch(e){
-      // ignore a single failed frame and try again on the next tick
+      // 1コマ分の失敗は無視して次のコマで再挑戦する
     }
     ocrBusy = false;
   }
@@ -992,6 +1016,13 @@
     const video = $('ocrVideo');
     video.srcObject = ocrStream;
     try{ await video.play(); }catch(e){}
+    ocrLastCandidate = null;
+    ocrMatchStreak = 0;
+    $('ocrTimeCandidate').textContent = '--:--';
+    $('ocrApplyBtn').disabled = true;
+    $('ocrApplyBtn').classList.remove('confirmed');
+    $('ocrConfidenceBadge').textContent = 'まだ候補がありません';
+    $('ocrConfidenceBadge').style.color = 'var(--mute)';
     $('ocrStartBtn').style.display = 'none';
     $('ocrStopBtn').style.display = 'inline-block';
     $('ocrResultBox').style.display = 'block';
@@ -1007,7 +1038,8 @@
     const startBtn = $('ocrStartBtn'), stopBtn = $('ocrStopBtn'), status = $('ocrStatus');
     if (startBtn) startBtn.style.display = 'inline-block';
     if (stopBtn) stopBtn.style.display = 'none';
-    if (status) status.textContent = 'カメラは停止中です。';
+    if (status) status.textContent = 'カメラは停止中です（候補時刻はそのまま残っています）。';
+    // カメラは止めるが、直前まで読み取れていた候補時刻・確定ボタンの状態はそのまま残す
   }
 
   $('ocrStartBtn').addEventListener('click', startOcr);
