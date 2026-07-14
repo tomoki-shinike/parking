@@ -835,13 +835,25 @@
     $('calcAlert').innerHTML = '';
     const lotId = $('lotSelect').value;
     const lot = lots.find(l=>l.id===lotId);
-    if (!lot){ $('calcAlert').innerHTML = '<div class="alertbox">駐車場を選択してください（未登録の場合は「駐車場管理」タブから追加してください）。</div>'; return; }
+    if (!lot){
+      $('calcAlert').innerHTML = '<div class="alertbox">駐車場を選択してください(未登録の場合は「駐車場管理」タブから追加してください)。</div>';
+      $('stubWrap').style.display = 'none'; $('stubWrap').innerHTML = ''; lastCalc = null;
+      return;
+    }
     const timeVal = $('startTimeInput').value;
-    if (!timeVal){ $('calcAlert').innerHTML = '<div class="alertbox">入庫時刻を入力してください。</div>'; return; }
+    if (!timeVal){
+      $('calcAlert').innerHTML = '<div class="alertbox">入庫時刻を入力してください。</div>';
+      $('stubWrap').style.display = 'none'; $('stubWrap').innerHTML = ''; lastCalc = null;
+      return;
+    }
     const startDate = new Date(`${ymd(new Date())}T${timeVal}`);
     const now = new Date();
     const endDate = new Date(now.getTime() + 15*60000);
-    if (endDate <= startDate){ $('calcAlert').innerHTML = '<div class="alertbox">入庫時刻が現在時刻より後になっています。確認してください。</div>'; return; }
+    if (endDate <= startDate){
+      $('calcAlert').innerHTML = '<div class="alertbox">入庫時刻が現在時刻より後になっています。確認してください。</div>';
+      $('stubWrap').style.display = 'none'; $('stubWrap').innerHTML = ''; lastCalc = null;
+      return;
+    }
 
     const result = calcFee(startDate, endDate, lot);
     renderStub(lot, startDate, endDate, result);
