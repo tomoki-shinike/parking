@@ -831,19 +831,25 @@
     `;
   }
 
+  function hideStub(){
+    $('stubWrap').style.display = 'none';
+    $('stubWrap').innerHTML = '';
+    lastCalc = null;
+  }
+
   async function runCalc(){
     $('calcAlert').innerHTML = '';
     const lotId = $('lotSelect').value;
     const lot = lots.find(l=>l.id===lotId);
     if (!lot){
       $('calcAlert').innerHTML = '<div class="alertbox">駐車場を選択してください(未登録の場合は「駐車場管理」タブから追加してください)。</div>';
-      $('stubWrap').style.display = 'none'; $('stubWrap').innerHTML = ''; lastCalc = null;
+      hideStub();
       return;
     }
     const timeVal = $('startTimeInput').value;
     if (!timeVal){
       $('calcAlert').innerHTML = '<div class="alertbox">入庫時刻を入力してください。</div>';
-      $('stubWrap').style.display = 'none'; $('stubWrap').innerHTML = ''; lastCalc = null;
+      hideStub();
       return;
     }
     const startDate = new Date(`${ymd(new Date())}T${timeVal}`);
@@ -851,7 +857,7 @@
     const endDate = new Date(now.getTime() + 15*60000);
     if (endDate <= startDate){
       $('calcAlert').innerHTML = '<div class="alertbox">入庫時刻が現在時刻より後になっています。確認してください。</div>';
-      $('stubWrap').style.display = 'none'; $('stubWrap').innerHTML = ''; lastCalc = null;
+      hideStub();
       return;
     }
 
@@ -879,6 +885,7 @@
     $('calcAlert').innerHTML = '<div class="okbox">記録しました。</div>';
   }
   $('calcBtn').addEventListener('click', runCalc);
+  $('startTimeInput').addEventListener('focus', hideStub);
 
   // ---------- tabs ----------
   document.querySelectorAll('.tab').forEach(tab=>{
@@ -991,6 +998,8 @@
 
   async function openOcrPanel(){
     ocrPanelOpen = true;
+    hideStub();
+    $('calcAlert').innerHTML = '';
     $('ocrPanel').style.display = 'block';
     $('ocrStatus').textContent = '文字認識ライブラリを読み込み中...';
     try{
