@@ -163,14 +163,8 @@
       <div id="ocrPanel" style="display:none; margin-bottom:14px;">
         <div class="card-box">
           <div style="display:flex; flex-direction:column; align-items:center; gap:8px;">
-            <div style="position:relative; width:100%; max-width:360px;">
-              <video id="ocrVideo" style="width:100%; display:block; border-radius:8px; background:#000;" playsinline muted></video>
-              <div style="position:absolute; left:0; right:0; top:0; height:38%; background:rgba(0,0,0,.55); border-radius:8px 8px 0 0; pointer-events:none;"></div>
-              <div style="position:absolute; left:0; right:0; bottom:0; height:38%; background:rgba(0,0,0,.55); border-radius:0 0 8px 8px; pointer-events:none;"></div>
-              <div style="position:absolute; left:0; right:0; top:38%; height:24%; border-top:2px solid var(--line-yellow); border-bottom:2px solid var(--line-yellow); pointer-events:none;"></div>
-              <canvas id="ocrCanvas" style="display:none;"></canvas>
-            </div>
-            <div class="helptext" style="text-align:center;">黄色い帯の中に、入庫時刻が行の一番右側にくるように合わせてください（時刻の右に他の数字が入らないように）</div>
+            <video id="ocrVideo" style="width:100%; max-width:360px; border-radius:8px; background:#000;" playsinline muted></video>
+            <canvas id="ocrCanvas" style="display:none;"></canvas>
           </div>
           <div id="ocrStatus" class="helptext" style="margin-top:8px; text-align:center;"></div>
           <div style="display:flex; justify-content:center; margin-top:8px;">
@@ -963,42 +957,24 @@
     });
   }
 
-  // 全角数字(０-９)を半角に変換（プリンタによっては全角で印字されるため）
-  function normalizeDigits(s){
-    return s.replace(/[\uFF10-\uFF19]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0));
-  }
-
-  // 区切り文字（: や 時/分 など）の認識には頼らず、行の中の数字のかたまりだけを拾い、
-  // 末尾の2つを「時・分」として扱う（コロン区切り・漢字区切りのどちらにも対応できる）
-  function extractTimeCandidate(rawText){
-    const text = normalizeDigits(rawText);
-    const groups = text.match(/\d{1,2}/g);
-    if (!groups || groups.length < 2) return null;
-    const hh = parseInt(groups[groups.length - 2], 10);
-    const mm = parseInt(groups[groups.length - 1], 10);
-    if (isNaN(hh) || isNaN(mm) || hh > 23 || mm > 59) return null;
-    return `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`;
-  }
-
   async function runOcrTick(){
     if (ocrBusy || !window.Tesseract) return;
     const video = $('ocrVideo');
     if (!video.videoWidth) return;
     ocrBusy = true;
     try{
-      // 画面のガイド帯（縦38%〜62%の範囲)だけを切り出してOCRにかける
-      const cropTopRatio = 0.38, cropHeightRatio = 0.24;
-      const sy = Math.round(video.videoHeight * cropTopRatio);
-      const sh = Math.round(video.videoHeight * cropHeightRatio);
       const canvas = $('ocrCanvas');
       canvas.width = video.videoWidth;
-      canvas.height = sh;
+      canvas.height = video.videoHeight;
       const ctx = canvas.getContext('2d');
-      ctx.drawImage(video, 0, sy, video.videoWidth, sh, 0, 0, canvas.width, canvas.height);
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       const { data } = await Tesseract.recognize(canvas, 'eng');
       const text = (data && data.text || '').trim();
-      const candidate = extractTimeCandidate(text);
-      if (candidate){
+      const m = text.match(/([01]?\d|2[0-3]):([0-5]\d)/);
+      if (m){
+        const hh = m[1].padStart(2,'0');
+        const mm = m[2];
+        const candidate = `${hh}:${mm}`;
         if (candidate === ocrLastCandidate){
           ocrMatchStreak++;
         } else {
@@ -1043,7 +1019,7 @@
     try{ await video.play(); }catch(e){}
     ocrLastCandidate = null;
     ocrMatchStreak = 0;
-    $('ocrStatus').textContent = 'カメラ起動中です。黄色い帯に入庫時刻の行を合わせてください。';
+    $('ocrStatus').textContent = 'カメラ起動中です。駐車券の印字部分を画面に収めてください。';
     ocrTimer = setInterval(runOcrTick, 1200);
   }
 
