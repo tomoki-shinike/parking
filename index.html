@@ -138,7 +138,6 @@
     <button class="tab" data-tab="lots">駐車場管理</button>
     <button class="tab" data-tab="holidays">祝日設定</button>
     <button class="tab" data-tab="data">データ管理</button>
-    <button class="tab" data-tab="ocr">📷 読取テスト</button>
   </div>
 
   <div class="panelbody">
@@ -150,12 +149,30 @@
         <div>
           <label>駐車場</label>
           <select id="lotSelect"></select>
+          <div class="helptext" style="margin-top:4px;">計算のたびに毎回選び直してください（安全のため自動で空欄に戻ります）</div>
         </div>
         <div>
           <label>入庫時刻</label>
-          <input type="time" id="startTimeInput">
+          <div style="display:flex; gap:8px;">
+            <input type="time" id="startTimeInput" style="flex:1 1 auto;">
+            <button type="button" id="ocrToggleBtn" title="カメラで時刻を読み取る" style="flex:0 0 auto; width:46px; background:var(--asphalt-900); border:1.5px solid #454b51; border-radius:6px; color:var(--line-yellow); font-size:19px; cursor:pointer;">📷</button>
+          </div>
         </div>
       </div>
+
+      <div id="ocrPanel" style="display:none; margin-bottom:14px;">
+        <div class="card-box">
+          <div style="display:flex; flex-direction:column; align-items:center; gap:8px;">
+            <video id="ocrVideo" style="width:100%; max-width:360px; border-radius:8px; background:#000;" playsinline muted></video>
+            <canvas id="ocrCanvas" style="display:none;"></canvas>
+          </div>
+          <div id="ocrStatus" class="helptext" style="margin-top:8px; text-align:center;"></div>
+          <div style="display:flex; justify-content:center; margin-top:8px;">
+            <button class="btn secondary small" id="ocrCancelBtn">キャンセルして閉じる</button>
+          </div>
+        </div>
+      </div>
+
       <button class="btn" id="calcBtn">現在時刻+15分で計算する</button>
       <div class="helptext" style="margin-top:8px;">駐車場と入庫時刻を選ぶだけで、現在時刻+15分までの料金・必要チケット枚数を自動計算します</div>
       <div class="stub-wrap" id="stubWrap" style="display:none;"></div>
@@ -305,37 +322,6 @@
       <div class="subsection">この端末のローカルデータ（計算履歴）</div>
       <div class="helptext" style="margin-bottom:10px;">計算履歴は端末ごとに保存され、料金設定とは別に管理されます。</div>
       <button class="btn danger" id="clearRuntimeBtn" style="padding:9px 16px;font-size:13px;">この端末の計算履歴だけ消去する</button>
-    </div>
-
-    <!-- カメラ読取テスト（試験機能） -->
-    <div class="tabpage" id="page-ocr" style="display:none;">
-      <div class="section-title">カメラ文字認識（試験機能）</div>
-      <div class="warnbox" style="margin-bottom:14px;">
-        これは挙動確認用の試験機能です。読み取り精度は保証されません。認識結果は必ず目で確認してから使ってください。<br>
-        ・文字認識ライブラリ（Tesseract.js）をインターネット経由で読み込むため、通信環境が必要です。<br>
-        ・カメラ利用には https での閲覧と、ブラウザのカメラ権限の許可が必要です（ローカルの file:// では動作しません）。
-      </div>
-
-      <button class="btn" id="ocrStartBtn">カメラを起動</button>
-      <button class="btn secondary" id="ocrStopBtn" style="display:none;">カメラを停止</button>
-
-      <div style="margin-top:14px; display:flex; flex-direction:column; align-items:center; gap:10px;">
-        <video id="ocrVideo" style="width:100%; max-width:420px; border-radius:8px; background:#000;" playsinline muted></video>
-        <canvas id="ocrCanvas" style="display:none;"></canvas>
-      </div>
-
-      <div id="ocrStatus" class="helptext" style="margin-top:12px;">カメラは停止中です。</div>
-
-      <div id="ocrResultBox" style="display:none; margin-top:10px;">
-        <div class="card-box">
-          <div style="font-family:var(--mono); font-size:12px; color:var(--mute);">認識された文字列</div>
-          <div id="ocrRawText" style="font-family:var(--mono); font-size:13px; margin:6px 0 12px; word-break:break-all; min-height:1.4em;"></div>
-          <div style="font-family:var(--mono); font-size:12px; color:var(--mute);">時刻候補</div>
-          <div id="ocrTimeCandidate" style="font-family:var(--mono); font-size:28px; font-weight:700; color:var(--line-yellow); margin:4px 0 6px;">--:--</div>
-          <div id="ocrConfidenceBadge" style="font-family:var(--mono); font-size:11.5px; color:var(--mute); margin-bottom:12px;">まだ候補がありません</div>
-          <button class="btn secondary small" id="ocrApplyBtn" disabled>この時刻を入庫時刻に反映して「料金計算」タブへ</button>
-        </div>
-      </div>
     </div>
 
   </div>
@@ -525,9 +511,12 @@
     if (lots.length===0){
       const o=document.createElement('option'); o.textContent='駐車場が未登録です'; o.value=''; sel.appendChild(o); return;
     }
+    const placeholder=document.createElement('option');
+    placeholder.textContent='-- 選択してください --'; placeholder.value=''; sel.appendChild(placeholder);
     lots.forEach(l=>{
       const o=document.createElement('option'); o.value=l.id; o.textContent=l.name; sel.appendChild(o);
     });
+    sel.value='';
   }
 
   function summarizeLot(lot){
@@ -857,6 +846,7 @@
     const result = calcFee(startDate, endDate, lot);
     renderStub(lot, startDate, endDate, result);
     lastCalc = { lot, startDate, endDate, result };
+    $('lotSelect').value = '';
 
     const wrap = $('stubWrap');
     const btnRow = document.createElement('div');
@@ -885,7 +875,7 @@
       tab.classList.add('active');
       document.querySelectorAll('.tabpage').forEach(p=>p.style.display='none');
       $('page-'+tab.dataset.tab).style.display = 'block';
-      if (tab.dataset.tab !== 'ocr' && typeof stopOcr === 'function') stopOcr();
+      if (tab.dataset.tab !== 'calc' && typeof closeOcrPanel === 'function') closeOcrPanel();
     });
   });
 
@@ -932,9 +922,10 @@
     renderHistory();
   });
 
-  // ---------- camera OCR test (experimental) ----------
+  // ---------- camera OCR (inline, auto-apply on 2 consecutive matches) ----------
   let ocrStream = null, ocrTimer = null, ocrBusy = false;
   let ocrLastCandidate = null, ocrMatchStreak = 0;
+  let ocrPanelOpen = false;
 
   function loadTesseractLib(){
     return new Promise((resolve, reject)=>{
@@ -945,20 +936,6 @@
       s.onerror = () => reject(new Error('tesseract load failed'));
       document.head.appendChild(s);
     });
-  }
-
-  function updateOcrConfidenceUI(){
-    const btn = $('ocrApplyBtn');
-    const badge = $('ocrConfidenceBadge');
-    if (ocrMatchStreak >= 2){
-      btn.classList.add('confirmed');
-      badge.textContent = `✓ ${ocrMatchStreak}回連続で一致（安定認識）`;
-      badge.style.color = 'var(--good)';
-    } else {
-      btn.classList.remove('confirmed');
-      badge.textContent = '認識中…目視で確認のうえ反映してください';
-      badge.style.color = 'var(--mute)';
-    }
   }
 
   async function runOcrTick(){
@@ -974,7 +951,6 @@
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       const { data } = await Tesseract.recognize(canvas, 'eng');
       const text = (data && data.text || '').trim();
-      $('ocrRawText').textContent = text || '(認識できませんでした)';
       const m = text.match(/([01]?\d|2[0-3]):([0-5]\d)/);
       if (m){
         const hh = m[1].padStart(2,'0');
@@ -986,20 +962,24 @@
           ocrLastCandidate = candidate;
           ocrMatchStreak = 1;
         }
-        $('ocrTimeCandidate').textContent = candidate;
-        $('ocrApplyBtn').disabled = false;
-        $('ocrApplyBtn').dataset.time = candidate;
-        updateOcrConfidenceUI();
+        if (ocrMatchStreak >= 2){
+          $('startTimeInput').value = candidate;
+          $('ocrStatus').textContent = `✓ ${candidate} を反映しました`;
+          setTimeout(closeOcrPanel, 500);
+        } else {
+          $('ocrStatus').textContent = `候補: ${candidate}（1回一致・もう一度同じ時刻が読み取れると反映します）`;
+        }
       }
-      // 読み取れなかったコマは無視し、直前の候補・確定ボタンの状態をそのまま維持する
-      // （カメラが一時的に券から外れても、表示中の候補は消さない）
+      // 読み取れなかったコマは無視し、直前の候補・状態をそのまま維持する
     }catch(e){
       // 1コマ分の失敗は無視して次のコマで再挑戦する
     }
     ocrBusy = false;
   }
 
-  async function startOcr(){
+  async function openOcrPanel(){
+    ocrPanelOpen = true;
+    $('ocrPanel').style.display = 'block';
     $('ocrStatus').textContent = '文字認識ライブラリを読み込み中...';
     try{
       await loadTesseractLib();
@@ -1018,39 +998,23 @@
     try{ await video.play(); }catch(e){}
     ocrLastCandidate = null;
     ocrMatchStreak = 0;
-    $('ocrTimeCandidate').textContent = '--:--';
-    $('ocrApplyBtn').disabled = true;
-    $('ocrApplyBtn').classList.remove('confirmed');
-    $('ocrConfidenceBadge').textContent = 'まだ候補がありません';
-    $('ocrConfidenceBadge').style.color = 'var(--mute)';
-    $('ocrStartBtn').style.display = 'none';
-    $('ocrStopBtn').style.display = 'inline-block';
-    $('ocrResultBox').style.display = 'block';
     $('ocrStatus').textContent = 'カメラ起動中です。駐車券の印字部分を画面に収めてください。';
     ocrTimer = setInterval(runOcrTick, 1200);
   }
 
-  function stopOcr(){
+  function closeOcrPanel(){
+    ocrPanelOpen = false;
     if (ocrTimer){ clearInterval(ocrTimer); ocrTimer = null; }
     if (ocrStream){ ocrStream.getTracks().forEach(t=>t.stop()); ocrStream = null; }
     const video = $('ocrVideo');
     if (video) video.srcObject = null;
-    const startBtn = $('ocrStartBtn'), stopBtn = $('ocrStopBtn'), status = $('ocrStatus');
-    if (startBtn) startBtn.style.display = 'inline-block';
-    if (stopBtn) stopBtn.style.display = 'none';
-    if (status) status.textContent = 'カメラは停止中です（候補時刻はそのまま残っています）。';
-    // カメラは止めるが、直前まで読み取れていた候補時刻・確定ボタンの状態はそのまま残す
+    $('ocrPanel').style.display = 'none';
   }
 
-  $('ocrStartBtn').addEventListener('click', startOcr);
-  $('ocrStopBtn').addEventListener('click', stopOcr);
-  $('ocrApplyBtn').addEventListener('click', ()=>{
-    const t = $('ocrApplyBtn').dataset.time;
-    if (!t) return;
-    $('startTimeInput').value = t;
-    stopOcr();
-    document.querySelector('.tab[data-tab=calc]').click();
+  $('ocrToggleBtn').addEventListener('click', ()=>{
+    if (ocrPanelOpen) closeOcrPanel(); else openOcrPanel();
   });
+  $('ocrCancelBtn').addEventListener('click', closeOcrPanel);
 
   // ---------- init ----------
   async function init(){
