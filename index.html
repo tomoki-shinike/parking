@@ -287,6 +287,15 @@
         <div class="helptext">例：「24時間ごとにリセット・上限1200円」＝24時間最大1200円。「休日のみ・暦日ごと・上限600円」＝休日は1日最大600円。</div>
       </div>
 
+      <div class="subsection">料金表の写真（任意）</div>
+      <div class="helptext" style="margin-bottom:8px;">確認用に料金表の写真を1枚添付できます。アップロード時に自動で縮小・圧縮されます。</div>
+      <input type="file" accept="image/*" id="f_feeImageInput">
+      <div id="feeImagePreviewBox" style="margin-top:10px; display:none;">
+        <img id="feeImagePreview" style="max-width:220px; max-height:220px; border-radius:8px; border:1px solid #454b51; display:block;">
+        <div id="feeImageDateLabel" class="helptext" style="margin-top:6px;"></div>
+        <button class="btn danger" id="removeFeeImageBtn" style="margin-top:8px;">写真を削除</button>
+      </div>
+
       <div style="margin-top:18px; display:flex; gap:10px;">
         <button class="btn" id="saveLotBtn">この内容で駐車場を保存</button>
         <button class="btn secondary" id="cancelEditBtn" style="display:none;">編集をキャンセル</button>
@@ -327,12 +336,18 @@
   </div>
 </div>
 
+<div id="imgLightbox" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.8); z-index:1000; align-items:center; justify-content:center; flex-direction:column; padding:20px;">
+  <div id="imgLightboxCaption" style="color:#fff; font-family:var(--mono); font-size:13px; margin-bottom:10px;"></div>
+  <img id="imgLightboxImg" style="max-width:92vw; max-height:75vh; border-radius:8px;">
+  <button class="btn secondary" id="imgLightboxCloseBtn" style="margin-top:14px;">閉じる</button>
+</div>
+
 <script>
 (function(){
   const CONFIG_CACHE_KEY = 'parkingConfigCache_v1';
   const RUNTIME_KEY = 'parkingRuntimeData_v1';
   let lots = [], holidays = [], history = [];
-  let pendingBands = [], pendingCaps = [], editingLotId = null;
+  let pendingBands = [], pendingCaps = [], editingLotId = null, pendingFeeImage = null, pendingFeeImageDate = null;
   let lastCalc = null;
   let configSource = 'none'; // 'file' | 'cache' | 'none'
   let configLoadedAt = null;
@@ -340,6 +355,32 @@
   const $ = id => document.getElementById(id);
   const pad = n => String(n).padStart(2,'0');
   const uid = p => p + '_' + Date.now() + '_' + Math.floor(Math.random()*10000);
+
+  // アップロードされた画像を縮小・圧縮してBase64(JPEG)のData URLとして返す
+  function resizeImageFile(file, maxDim=900, quality=0.72){
+    return new Promise((resolve, reject)=>{
+      const reader = new FileReader();
+      reader.onload = (e)=>{
+        const img = new Image();
+        img.onload = ()=>{
+          let w = img.width, h = img.height;
+          if (w > maxDim || h > maxDim){
+            if (w >= h){ h = Math.round(h * maxDim / w); w = maxDim; }
+            else { w = Math.round(w * maxDim / h); h = maxDim; }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = reject;
+        img.src = e.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
 
   // --- master config (lots + holidays): loaded from parking-data.json next to this HTML file ---
   function readConfigCache(){
@@ -550,10 +591,14 @@
       const div = document.createElement('div');
       div.className = 'card-box lotcard';
       div.innerHTML = `
-        <div>
-          <div class="name">${escapeHtml(l.name)}${l.weekendHoliday?'　<span style="color:var(--mute);font-weight:400;font-size:11px;">（土日=休日）</span>':''}</div>
-          <div class="meta">${escapeHtml(summarizeLot(l))}</div>
-          <div class="meta">${escapeHtml(summarizeCaps(l))}</div>
+        <div style="display:flex; gap:12px; align-items:flex-start;">
+          ${l.feeImage ? `<img src="${l.feeImage}" data-act="viewimg" data-id="${l.id}" style="width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px solid #454b51;cursor:pointer;flex:0 0 auto;">` : ''}
+          <div>
+            <div class="name">${escapeHtml(l.name)}${l.weekendHoliday?'　<span style="color:var(--mute);font-weight:400;font-size:11px;">（土日=休日）</span>':''}</div>
+            <div class="meta">${escapeHtml(summarizeLot(l))}</div>
+            <div class="meta">${escapeHtml(summarizeCaps(l))}</div>
+            ${l.feeImage ? `<div class="meta">料金表 写真アップロード日：${escapeHtml(l.feeImageDate || '不明')}</div>` : ''}
+          </div>
         </div>
         <div class="btns">
           <button class="btn secondary small" data-act="edit" data-id="${l.id}">編集</button>
@@ -567,6 +612,8 @@
         await saveLots();
         renderLotList(); renderLotSelect();
       });
+      const imgEl = div.querySelector('[data-act=viewimg]');
+      if (imgEl) imgEl.addEventListener('click', ()=> showImageLightbox(l.feeImage, `${l.name}${l.feeImageDate ? '　(アップロード日：'+l.feeImageDate+')' : ''}`));
       box.appendChild(div);
     });
   }
@@ -606,6 +653,15 @@
     });
   }
 
+  function showImageLightbox(dataUrl, caption){
+    if (!dataUrl) return;
+    $('imgLightboxImg').src = dataUrl;
+    $('imgLightboxCaption').textContent = caption || '';
+    $('imgLightbox').style.display = 'flex';
+  }
+  $('imgLightboxCloseBtn').addEventListener('click', ()=>{ $('imgLightbox').style.display = 'none'; });
+  $('imgLightbox').addEventListener('click', (e)=>{ if (e.target.id === 'imgLightbox') $('imgLightbox').style.display = 'none'; });
+
   function resetForm(){
     editingLotId = null;
     $('editorTitle').textContent = '駐車場を追加';
@@ -625,6 +681,9 @@
     renderPendingCaps();
     ['fb_label','fb_unitMin','fb_unitPrice','fb_max'].forEach(id=>$(id).value='');
     $('fc_amount').value = '';
+    pendingFeeImage = null;
+    pendingFeeImageDate = null;
+    showFeeImagePreview(null);
   }
 
   function loadLotIntoForm(id){
@@ -661,6 +720,9 @@
       pendingBands = [];
     }
     pendingCaps = JSON.parse(JSON.stringify(l.globalCaps||[]));
+    pendingFeeImage = l.feeImage || null;
+    pendingFeeImageDate = l.feeImageDate || null;
+    showFeeImagePreview(pendingFeeImage, pendingFeeImageDate);
     renderPendingBands();
     renderPendingCaps();
     document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
@@ -716,13 +778,45 @@
     $('fc_amount').value = '';
   });
 
+  function showFeeImagePreview(dataUrl, dateStr){
+    if (dataUrl){
+      $('feeImagePreview').src = dataUrl;
+      $('feeImagePreviewBox').style.display = 'block';
+      $('feeImageDateLabel').textContent = dateStr ? `アップロード日：${dateStr}` : '';
+    } else {
+      $('feeImagePreview').src = '';
+      $('feeImagePreviewBox').style.display = 'none';
+      $('feeImageDateLabel').textContent = '';
+    }
+  }
+
+  $('f_feeImageInput').addEventListener('change', async (e)=>{
+    const file = e.target.files[0];
+    if (!file) return;
+    try{
+      const dataUrl = await resizeImageFile(file);
+      pendingFeeImage = dataUrl;
+      pendingFeeImageDate = ymd(new Date());
+      showFeeImagePreview(dataUrl, pendingFeeImageDate);
+    }catch(err){
+      alert('画像の読み込みに失敗しました。別の画像でお試しください。');
+    }
+    $('f_feeImageInput').value = '';
+  });
+
+  $('removeFeeImageBtn').addEventListener('click', ()=>{
+    pendingFeeImage = null;
+    pendingFeeImageDate = null;
+    showFeeImagePreview(null);
+  });
+
   $('saveLotBtn').addEventListener('click', async ()=>{
     const name = $('f_name').value.trim();
     if (!name){ alert('名称を入力してください。'); return; }
     const mode = document.querySelector('input[name=mode]:checked').value;
     const weekendHoliday = $('f_weekendHoliday').checked;
 
-    let lot = { id: editingLotId || uid('lot'), name, weekendHoliday, timeBandsEnabled: mode==='bands' };
+    let lot = { id: editingLotId || uid('lot'), name, weekendHoliday, timeBandsEnabled: mode==='bands', feeImage: pendingFeeImage, feeImageDate: pendingFeeImage ? pendingFeeImageDate : null };
 
     if (mode==='flat'){
       const wdMin = parseInt($('ff_wd_unitMin').value,10);
